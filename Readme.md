@@ -6,7 +6,7 @@ Wafer map defect pattern classification using Manual Feature Extraction
 
 ### Manual Feature Extraction (MFE)
 
-![](https://github.com/DMkelllog/Wafer_map_pattern_classification_CNN/blob/main/CNN%20flow.PNG?raw=true)
+![](https://github.com/DMkelllog/wafermap_MFE/blob/main/MFE_flow.png?raw=true)
 
 * Input:    handcrafted features of wafer map
   * 59-dim
