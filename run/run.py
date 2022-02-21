@@ -16,19 +16,23 @@ from utils import CustomDataset, FNN, training, inference
 
 def build_MFE(args):
 
+    # with open(f'../data/X_MFE.pickle', 'rb') as f:
     with open(f'../data/X_MFE.pickle', 'rb') as f:
         X_MFE = pickle.load(f)
 
     with open('../data/y.pickle', 'rb') as f:
         y = pickle.load(f)
     
-    X_MFE_trainval, X_MFE_test, y_trainval, y_test = train_test_split(X_MFE, y, test_size=10000, random_state=args.seed, stratify=y)
+    X_MFE_trainval, X_MFE_test, y_trainval, y_test = train_test_split(X_MFE, y, test_size=10000, random_state=args.seed+27407, stratify=y)
     X_MFE_trainval, y_trainval = X_MFE_trainval[:args.train_size], y_trainval[:args.train_size]
-    X_MFE_train, X_MFE_val, y_train, y_val = train_test_split(X_MFE_trainval, y_trainval, test_size=0.2, random_state=args.seed, stratify=y_trainval)
-
+    X_MFE_train, X_MFE_val, y_train, y_val = train_test_split(X_MFE_trainval, y_trainval, test_size=0.2, random_state=args.seed+27407)
+    print(np.unique(y_trainval))
+    print(np.unique(y_train))
     scaler = StandardScaler()
-    X_MFE_train = scaler.fit_transform(X_MFE_train)
+    scaler.fit(X_MFE_trainval)
+    X_MFE_train = scaler.transform(X_MFE_train)
     X_MFE_val = scaler.transform(X_MFE_val)
+    X_MFE_trainval = scaler.transform(X_MFE_trainval)
     X_MFE_test = scaler.transform(X_MFE_test)
 
     mode = 'MFE'
@@ -48,8 +52,8 @@ def build_MFE(args):
 
     model, log = training(model, dataloader_MFE_train, dataloader_MFE_val, mode, args)
 
-    f1_macro_MFE_test, f1_micro_MFE_test, y_hat_MFE_test = inference(model, dataloader_MFE_test, y_test, np.unique(y_train), args)
-    f1_macro_trainval, f1_micro_trainval, y_hat_MFE_trainval = inference(model, dataloader_MFE_trainval, y_trainval, np.unique(y_train), args)
+    f1_macro_MFE_test, f1_micro_MFE_test, y_hat_MFE_test = inference(model, dataloader_MFE_test, y_test, np.unique(y_trainval), args)
+    f1_macro_trainval, f1_micro_trainval, y_hat_MFE_trainval = inference(model, dataloader_MFE_trainval, y_trainval, np.unique(y_trainval), args)
 
     with open(f'../result/{args.seed}/{args.train_size}/y_hat_{mode}.pickle', 'wb') as f:
         pickle.dump([y_hat_MFE_trainval, y_hat_MFE_test], f)
@@ -70,9 +74,9 @@ if __name__ == '__main__':
     parser.add_argument('--train_size', type=int, default=500, help='train_size')
     parser.add_argument('--hidden_size', type=int, default=128, help='hidden size')
     parser.add_argument('--max_epochs', type=int, default=1000, help='max epochs')
-    parser.add_argument('--activation', type=str, default='relu', help='activation function')
+    parser.add_argument('--activation', type=str, default='tanh', help='activation function')
     parser.add_argument('--print_freq', type=int, default=0, help='training print frequency')
-    parser.add_argument('--dropout', type=float, default=0.2, help='dropout')
+    parser.add_argument('--dropout', type=float, default=0, help='dropout')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--es_patience', type=int, default=20, help='early stopping patience')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')

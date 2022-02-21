@@ -57,6 +57,10 @@ class CNN(nn.Module):
     def forward(self, x):
         return self.cnn(x)
 
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
 
 class FNN(nn.Module):
     def __init__(self, args):
@@ -64,10 +68,14 @@ class FNN(nn.Module):
         if args.activation=='relu': self.activation = nn.ReLU()
         elif args.activation=='tanh': self.activation = nn.Tanh()
         self.fnn = nn.Sequential(
-            nn.Linear(59, args.hidden_size), self.activation, nn.Dropout(args.dropout),
-            nn.Linear(args.hidden_size, args.hidden_size), self.activation, nn.Dropout(args.dropout),
+            nn.Linear(59, args.hidden_size), self.activation,# nn.Dropout(args.dropout),
+            nn.Linear(args.hidden_size, args.hidden_size), self.activation, #nn.Dropout(args.dropout),
             nn.Linear(args.hidden_size, 9))
+        self.fnn.apply(init_weights)
+    
 
+    net = nn.Sequential(nn.Linear(2, 2), nn.Linear(2, 2))
+    
     def forward(self, x):
         return self.fnn(x)
 
@@ -75,9 +83,9 @@ class FNN(nn.Module):
 def training(model, dataloader_train, dataloader_val, mode, args):    
     result_path = f'../result/{args.seed}/{args.train_size}'
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
     loss_fn = nn.CrossEntropyLoss()
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, min_lr=1e-7, verbose=False)
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=25, min_lr=1e-7, verbose=False)
 
     train_log, val_log = np.zeros(args.max_epochs), np.zeros(args.max_epochs)
 
@@ -96,7 +104,7 @@ def training(model, dataloader_train, dataloader_val, mode, args):
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()
+            total_loss += loss.item() * y.size(0)
             total_num += y.size(0)
         train_loss = total_loss / total_num
 
@@ -109,7 +117,7 @@ def training(model, dataloader_train, dataloader_val, mode, args):
                 y_pred = model(x)
                 loss = loss_fn(y_pred, y)
 
-                total_loss += loss.item()
+                total_loss += loss.item() * y.size(0)
                 total_num += y.size(0)
             val_loss = total_loss / total_num
         if args.print_freq == 0: pass
@@ -127,18 +135,19 @@ def training(model, dataloader_train, dataloader_val, mode, args):
 
         elif np.argmin(val_log[:epoch + 1]) <= epoch - args.es_patience:
             break
-        
     log = {'train_loss': train_log, 'val_loss': val_log}
     if args.print_freq == 0: pass
     else: print(f'training terminated at epoch {epoch}. returning best_val_epoch: {best_val_epoch}')
 
     with open(f'{result_path}/log_{mode}.pickle', 'wb') as f:
         pickle.dump(log, f)
-    model.load_state_dict(torch.load(f'{result_path}/{mode}.pt'))
     return model, log
 
 
 def inference(model, dataloader_test, y_test, y_set, args):
+    result_path = f'../result/{args.seed}/{args.train_size}'
+
+    model.load_state_dict(torch.load(f'{result_path}/MFE.pt'))
     model.eval()
     y_hat = []
     with torch.no_grad():
